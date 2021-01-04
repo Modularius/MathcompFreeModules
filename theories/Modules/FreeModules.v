@@ -1,4 +1,5 @@
-(* math-algebra (c) 2020 Dr Daniel Kirk                                       *)
+(******************************************************************************)
+(* Dr Daniel Kirk (c) 2021                                                    *)
 (******************************************************************************)
 (* Let R : ringType                                                           *)
 (******************************************************************************)
@@ -31,8 +32,16 @@
 (* vector_fdFreeLmod R n   == the fdFreeLmodType structure for                *)
 (*                            matrix_lmodType 1 n, the row matrix objects.    *)
 (*                            It has a basis 'I_n                             *)
+(*        R\lmod^n         == alias for vector_fdFreeLmod R n                 *)
 (* poly_fdFreeLmod R n     == the fdFreeLmodType structure for                *)
-(*                            poly_lmodType n.                                *)
+(*                            poly_lmodType n. [TODO]                         *)
+(******************************************************************************)
+(* freeLinear.to_row   == linIsomType mapping a fdFreeLmod with basis         *)
+(*                        number n to R\lmod^n                                *)
+(* freeLinear.to_map   == function mapping {linear M -> N} to the equivalent  *)
+(*                        {linear R\lmod^m -> R\lmod^n} where M and N have    *)
+(*                        basis numbers m and n respectively                  *)
+(* freeLinear.from_map == inverse of freeLinear.to_map                        *)
 (******************************************************************************)
 (*        M1 \foplus M2  == the fdFreeLmodType given by M1 \oplus M2 and      *)
 (*                          Pair.basis M1 M2                                  *)
@@ -58,14 +67,14 @@
 (*         \fbigoplus I == equivalent to \fbigoplus_(f : F) I                 *)
 (*                         where I : F -> lmodType R                          *)
 (******************************************************************************)
-(* FreeModule_UniversalProperty == *)
+(* FreeModule_UniversalProperty == [TODO] *)
 (******************************************************************************)
 
 Require Import Coq.Program.Tactics.
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
 From mathcomp Require Import ssreflect ssrfun seq.
-From mathcomp Require Import eqtype fintype bigop finfun matrix.
+From mathcomp Require Import eqtype fintype bigop matrix poly.
 
 Set Warnings "-parsing". (* Some weird bug in ssrbool throws out parsing warnings*)
   From mathcomp Require Import ssrbool ssrnat.
@@ -117,6 +126,9 @@ Module fdFreeLmod.
     Definition Build {M : lmodType R} (B : lmodFinBasis.type M) := Pack (Mixin B).
 
     Definition to_arb (F : type) := freeLmod.Build (lmodFinBasis.to_lmodBasis (fdBasis (class_of F))).
+    Definition erefl (B : type) := erefl (size (enum (to_FinType (fdBasis (class_of B))))).
+    Definition eqBn (B : type) (n : nat) := size (enum (to_FinType (fdBasis (class_of B)))) = n.
+    Definition eqnB (B : type) (n : nat) := n = size (enum (to_FinType (fdBasis (class_of B)))).
   End Def.
 
 
@@ -229,8 +241,7 @@ Module freeLmodMatrix.
     Definition fn pp := @delta_mx R m n pp.1 pp.2.
     Lemma fn_injective : injective fn.
       Proof. rewrite/fn=>x y; rewrite /delta_mx -matrixP/eqrel=>H.
-        assert(H := H y.1 y.2); move: H;
-        rewrite !mxE !eq_refl/==>H.
+        move:(H y.1 y.2); clear H; rewrite !mxE !eq_refl/==>H.
         have: (y.1 == x.1) by 
           case(y.1 == x.1) as []eqn:E=>//; move: H;
           rewrite !E !(rwP eqP) eq_sym oner_eq0.
@@ -243,8 +254,7 @@ Module freeLmodMatrix.
 
       Lemma fn_nondegen : non_degenerate fn.
       Proof. rewrite /fn=>x; rewrite /delta_mx -(rwP negP)-(rwP eqP)-matrixP=>H.
-        assert(H := H x.1 x.2); move: H.
-        by rewrite !mxE !eq_refl (rwP eqP) oner_eq0.
+        by move:(H x.1 x.2); rewrite !mxE !eq_refl (rwP eqP) oner_eq0.
       Qed.
 
       Definition fn_bset := lmodFinSet.Build fn_injective fn_nondegen.
@@ -260,10 +270,8 @@ Module freeLmodMatrix.
         rewrite (addrC _ (\sum_(j <- _| P2 j) _)) !addrA.
         by rewrite addrKA IHl !addrA/=.
         by rewrite IHl/= !addrA.
-        case(P2 a) as []eqn:E2=>/=.
-        rewrite !addrA (addrC (\sum_(j <- _| P1 j) _) _).
-        by rewrite IHl !addrA/=.
-        by rewrite IHl.
+        case(P2 a) as []eqn:E2=>//=.
+        by rewrite !addrA (addrC (\sum_(j <- _| P1 j) _) _) IHl !addrA/=.
       Qed.
 
       Lemma seq_basis (c : 'I_m*'I_n -> R) (x : seq ('I_m*'I_n)) (U : uniq x) : \sum_(b <- x) c b *: delta_mx b.1 b.2 =  \sum_(i < m) \sum_(j < n) (if(i,j) \in x then c (i,j) else 0) *: delta_mx i j.
@@ -277,55 +285,27 @@ Module freeLmodMatrix.
         under eq_bigl do rewrite in_nil.
         by rewrite big_pred0.
 
-        rewrite big_cons.
         simpl in U; move/andP in U.
-        rewrite (IHx (proj2 U)).
+        rewrite big_cons (IHx (proj2 U)).
         symmetry; under eq_bigl do rewrite in_cons;symmetry.
         rewrite big_or -(IHx (proj2 U)) (big_pred1 a).
-        destruct a=>/=.
-        rewrite (big_mkcond (fun _ => _ && (_ \in _)))=>/=.
-        rewrite (big1 _ _ (fun i => if _ then _ else _)).
-        by rewrite subr0.
-        move=>i _.
-        case((i.1, i.2) == (o, o0)) as []eqn:E1.
+        destruct a as [a1 a2]=>/=.
+        rewrite (big_mkcond (fun _ => _ && (_ \in _)))/=
+                (big1 _ _ (fun i => if _ then _ else _));
+        [by rewrite subr0|move=>i _].
+        case((i.1, i.2) == (a1, a2)) as []eqn:E1=>//.
         case((i.1, i.2) \in x) as []eqn:E2.
-        move/eqP in E1.
-        by rewrite -E1 E2/= in U; destruct U.
-        by rewrite E2/=.
-        by [].
-        move=>i; destruct a.
-        by rewrite/pred1/=.
+        by move/eqP in E1; rewrite -E1 E2/= in U; destruct U.
+        by rewrite E2.
+        move=>i; destruct a as [a1 a2]=>//.
       Qed.
-(*
-        Lemma sum_sdgsdg P1 P2 : \sum_i
-        (if (P1 i || P2 i) then F i else 0) *: delta_mx i i0
-         induction x=>c.
-        rewrite big_nil.
-        under eq_bigr do under eq_bigr do rewrite in_nil.
-        rewrite {1}(matrix_sum_delta 0)/=.
-        by under eq_bigr do under eq_bigr do rewrite mxE.
 
-        rewrite big_cons.
-        simpl in U; move/andP in U.
-        rewrite (IHx (proj2 U)).
-        symmetry; under eq_bigr do under eq_bigr do rewrite in_cons; symmetry.
-
-        clear IHx. induction m. by destruct a as [o oo]; destruct o.
-        rewrite /=!big_ord_recl/=.
-
-        have H: \sum_(i < m)
-        \sum_(j < n) (if (i, j) \in h then c (i, j) else 0) *: delta_mx i j =
-     \sum_(i < m)
-        \sum_(j < n) (if (i, j) \in a :: h then c (i, j) else 0) *: delta_mx i j.
-      Qed.
-*)
       Lemma fn_li : lmodBasis.li fn_bset.
       Proof. rewrite/fn_bset/lmodFinSet.to_set/==>c H.
         destruct c as [c V].
         destruct H as [h [U [H S]]].
         simpl in H, S, c, h; rewrite fsFun.eqFSFun/=; clear V.
-        rewrite /fn in S.
-        rewrite (seq_basis _ U) in S.
+        rewrite /fn(seq_basis _ U) in S.
         move:(matrix_sum_delta (\matrix_(i < m, j < n)(if (i, j) \in h then c (i, j) else 0))).
         under eq_bigr do under eq_bigr do rewrite mxE.
         move=>A. move/eqP in S; move:S.
@@ -336,19 +316,9 @@ Module freeLmodMatrix.
         case(c b == 0) as []eqn:E.
         by move/eqP in E.
         move/negbT in E.
-        by destruct b=>/=;
-        rewrite (H _ E)/=.
+        by destruct b=>/=; rewrite (H _ E).
       Qed.
-(*
-      Definition elemFun_raw : fn_bset -> 'M_(m,n) -> R
-      := fun ij => fun A : 'M_(m,n) => A ij.1 ij.2.
-      Lemma elemFun_sca (b : fn_bset) : scalar (elemFun_raw b).
-      Proof. rewrite/elemFun_raw=>r x y.
-        by rewrite mxE mxE. Qed.
 
-      Definition elemFun : fn_bset -> {scalar 'M[R]_(m,n)}
-       := fun b => Linear (elemFun_sca b).
-      *)
     Lemma fn_spanning : lmodBasis.span fn_bset.
     Proof. move=>A.
       move:(matrix_sum_delta A)=>W.
@@ -357,8 +327,8 @@ Module freeLmodMatrix.
       have HS : hasSupport (fun i => A i.1 i.2) (index_enum (prod_finType (ordinal_finType m) (ordinal_finType n))) by
       move=>b X; apply (mem_index_enum b).
 
-      have E : hasFinSuppE (fun i => A i.1 i.2) by
-      apply (ex_intro _ _ (ex_intro _ (index_enum_uniq _) HS)).
+      have E : finSuppE (fun i => A i.1 i.2) by
+      refine (ex_intro _ _ (conj _ HS)); rewrite (index_enum_uniq _).
 
       refine(exist _ (fsFun.Pack E) _).
       refine (ex_intro _ _ (ex_intro _ (index_enum_uniq _) (ex_intro _ HS _))).
@@ -427,11 +397,11 @@ Module freeLmodVector.
       Lemma fn_li : lmodBasis.li fn_bset.
       Proof. move: (@freeLmodMatrix.fn_li R 1 n)=>W C S.
         rewrite /lmodBasis.li in W.
-        destruct C as [coef [Sc Hc]].
+        destruct C as [coef C].
         destruct S as [s [U [H S]]].
         move: s U H S.
         rewrite/==>s U H S.
-        rewrite fsFun.eqFSFun/=; clear Sc Hc.
+        rewrite fsFun.eqFSFun/=; clear C.
         pose(s' := map (fun i => (Ordinal (ltn0Sn 0),i)) s).
 
         have U' : uniq s'.
@@ -452,7 +422,7 @@ Module freeLmodVector.
         apply (H _ X).
 
         have Q: fsFun.finSuppE (B:= prod_eqType (ordinal_eqType 1) _) (coef \o snd) by
-        apply(ex_intro _ s' (ex_intro _ U' H')).
+        refine(ex_intro _ s' _)=>//.
 
         move:(W (fsFun.Pack Q))=>T.
         have Y: lmodLCSumsTo (B:=freeLmodMatrix.fn_bset R 1 n) {| fsFun.sort := coef \o snd; fsFun.hasFiniteSupport := Q |} 0.
@@ -471,19 +441,17 @@ Module freeLmodVector.
     Proof. move=>/=A.
       move: (@freeLmodMatrix.fn_spanning R 1 n A)=>C;destruct C as [C S].
       have E: fsFun.finSuppE (C \o vect_to_mat). clear S.
-      destruct C as [coef [c [U H]]]; simpl.
-      refine(ex_intro _ (map mat_to_vect c) _).
-      rewrite -(map_inj_in_uniq (f:=mat_to_vect)) in U.
-      refine(ex_intro _ U _).
+      destruct C as [coef [c [U H]]].
+      refine(ex_intro _ (map mat_to_vect c) _);split.
+      rewrite -(map_inj_in_uniq (f:=mat_to_vect)) in U=>//.
+      move=>[x1 x2] [y1 y2] X Y Z.
+      rewrite/mat_to_vect/= in Z.
+      destruct x1, y1; destruct m,m0=>//.
+      by rewrite Z (proof_irrelevance _ i i0).
       move=>b X.
       rewrite/comp/vect_to_mat in X.
       rewrite -(rwP mapP).
       refine(ex_intro2 _ _ (ord0,b) (H _ X) _)=>//.
-      move=>[x1 x2] [y1 y2] X Y Z.
-      rewrite/mat_to_vect/= in Z.
-      destruct x1, y1.
-      destruct m,m0=>//.
-      by rewrite Z (proof_irrelevance _ i i0).
 
       refine(exist _ (fsFun.Pack E) _).
       destruct S as [s [U [H S]]].
@@ -523,98 +491,81 @@ Export freeLmodVector.Exports.
 
 Module freeLinear.
   Section Def.
-  Variable (R : ringType).
+    Variable (R : ringType).
+    Section VectorConversion.
+    Variable (M : fdFreeLmodType R) (n : nat) (E : fdFreeLmod.eqnB M n).
 
-  Section Arbitrary.
-    Variable (M1 M2 : freeLmodType R)
-    (matrix : (freeLmod.basis M1) -> (freeLmod.basis M2) -> R).
+      Definition to_row_raw : M -> vector_lmodType R n  := fun x =>
+      \row_(i < n)
+        \fdFreeBasisCoef_(lmodFinSet.from_ord E i) x.
 
-    Record subset(M : freeLmodType R)
-    := Subset { F : finType; f :> F -> freeLmod.basis M; _ : injective f;}.
+      Definition from_row_raw : vector_lmodType R n -> M  := fun x =>
+        \sum_(b : fdBasis M)
+          x (Ordinal (ltn0Sn 0)) (lmodFinSet.to_ord E b) *: (fdBasis M b).
 
-    Definition linear_extension_axiom (f : {linear M1 -> M2}) :=
-    forall (S1 : subset M1) (S2 : subset M2) b1 b2,
-      matrix (S1 b1) (S2 b2)
-      = lmodBasis.coef (S2 b2) (f ((freeLmod.basis M1) (S1 b1))).
-  End Arbitrary.
-
-  Section VectorConversion.
-   Variable (M : fdFreeLmodType R) (n : nat) (E : n = size (enum (to_FinType (fdBasis M)))).
-
-    Definition to_row_raw : M -> vector_lmodType R n  := fun x =>
-    \row_(i < n)
-      \fdFreeBasisCoef_(lmodFinSet.from_ord E i) x.
-
-    Definition from_row_raw : vector_lmodType R n -> M  := fun x =>
-      \sum_(b : fdBasis M)
-        x (Ordinal (ltn0Sn 0)) (lmodFinSet.to_ord E b) *: (fdBasis M b).
-
-    Lemma from_row_lin : linear to_row_raw /\ linear from_row_raw.
-    Proof. split; rewrite/from_row_raw/to_row_raw=>r x y.
-    rewrite -matrixP /eqrel=>i j.
-    by rewrite !mxE linearP.
-    rewrite scaler_sumr -big_split.
-    apply eq_bigr=>i _.
-    by rewrite mxE mxE scalerDl scalerA. Qed.
-
-    Lemma from_rowK : cancel to_row_raw from_row_raw /\ cancel from_row_raw to_row_raw.
-    Proof. split=>x; rewrite/from_row_raw/to_row_raw.
-      move:(lmodBasis.hasSpanEq (fdBasis M) x)=>H.
-      destruct H as [s [U [H S]]]; move/eqP in S.
-      rewrite (lmodLC.finSuppsSumToEq H (@lmodFinBasis.hasSupport_enum _ _ (fdBasis M) x) U (enum_uniq _)) in S.
-      rewrite -big_enum-S.
+      Lemma from_row_lin : linear to_row_raw /\ linear from_row_raw.
+      Proof. split; rewrite/from_row_raw/to_row_raw=>r x y.
+      rewrite -matrixP /eqrel=>i j.
+      by rewrite !mxE linearP.
+      rewrite scaler_sumr -big_split.
       apply eq_bigr=>i _.
-      rewrite mxE.
-      rewrite linear_sum ord_to_finBasisK scaler_suml.
-      by rewrite (lmodBasis.sum_trivialises (B:=fdBasis M) (enum_uniq _) i (lmodFinBasis.hasSupport_enum (x:=x))).
+      by rewrite mxE mxE scalerDl scalerA. Qed.
 
-      rewrite -matrixP=>i j.
-      rewrite mxE linear_sum.
-      under eq_bigr do rewrite linearZ (lmodBasis.orthonormP (B:=fdBasis M) (ord_to_finBasis E j)) eq_sym.
-      have Q: forall k (_ : true),
-        (x (Ordinal (ltn0Sn 0)) (finBasis_to_ord E k) * (if k == ord_to_finBasis E j then 1 else 0))
-          = if k == ord_to_finBasis E j then
-              x (Ordinal (ltn0Sn 0)) (finBasis_to_ord E k)
-            else
-              0
-      by move=>k _; case(k == ord_to_finBasis E j); [rewrite mulr1|rewrite mulr0].
-      rewrite (eq_bigr _ Q) -big_mkcond big_pred1_eq finBasis_to_ordK.
-      destruct i as [i I]; destruct i=>//.
-      by rewrite (proof_irrelevance _ (ltn0Sn 0) I).
-    Qed.
-    Definition to_row := linIsomBuildPack from_row_lin from_rowK.
-  End VectorConversion.
+      Lemma from_rowK : cancel to_row_raw from_row_raw /\ cancel from_row_raw to_row_raw.
+      Proof. split=>x; rewrite/from_row_raw/to_row_raw.
+        move:(lmodBasis.hasSpanEq (fdBasis M) x)=>H.
+        destruct H as [s [U [H S]]]; move/eqP in S.
+        rewrite (eqLCSumsTo H (@lmodFinBasis.hasSupport_enum _ _ (fdBasis M) x) U (enum_uniq _)) in S.
+        rewrite -big_enum-S.
+        apply eq_bigr=>i _.
+        rewrite mxE.
+        rewrite linear_sum ord_to_finBasisK scaler_suml.
+        by rewrite (lmodBasis.sum_trivialises (B:=fdBasis M) (enum_uniq _) i (lmodFinBasis.hasSupport_enum (x:=x))).
 
-  Section MatrixConversion.
-    Variable (M N : fdFreeLmodType R)
-    (m : nat) (Em : m = size (enum (to_FinType (fdBasis M))))
-    (n : nat) (En : n = size (enum (to_FinType (fdBasis N)))).
+        rewrite -matrixP=>i j.
+        rewrite mxE linear_sum.
+        under eq_bigr do rewrite linearZ (lmodBasis.orthonormP (B:=fdBasis M) (ord_to_finBasis E j)) eq_sym.
+        have Q: forall k (_ : true),
+          (x (Ordinal (ltn0Sn 0)) (finBasis_to_ord E k) * (if k == ord_to_finBasis E j then 1 else 0))
+            = if k == ord_to_finBasis E j then
+                x (Ordinal (ltn0Sn 0)) (finBasis_to_ord E k)
+              else
+                0
+        by move=>k _; case(k == ord_to_finBasis E j); [rewrite mulr1|rewrite mulr0].
+        rewrite (eq_bigr _ Q) -big_mkcond big_pred1_eq finBasis_to_ordK.
+        destruct i as [i I]; destruct i=>//.
+        by rewrite (proof_irrelevance _ (ltn0Sn 0) I).
+      Qed.
+      Definition to_row := linIsomBuildPack from_row_lin from_rowK.
+    End VectorConversion.
 
-    Definition to_map (f : {linear M -> N}) : {linear (vector_lmodType R m) -> (vector_lmodType R n)}
-     := (to_row En) \oLin f \oLin inv(to_row Em).
+    Section MatrixConversion.
+      Variable (M N : fdFreeLmodType R)
+      (m : nat) (Em : fdFreeLmod.eqnB M m)
+      (n : nat) (En : fdFreeLmod.eqnB N n).
 
-    Definition from_map (f : {linear (vector_lmodType R m) -> (vector_lmodType R n)}) : {linear M -> N}
-      := inv(to_row En) \oLin f \oLin (to_row Em).
+      Definition to_map (f : {linear M -> N}) : {linear (vector_lmodType R m) -> (vector_lmodType R n)}
+      := (to_row En) \oLin f \oLin inv(to_row Em).
 
-    Lemma from_mapK : cancel to_map from_map.
-    Proof. rewrite/from_map/to_map=>/=f.
-      rewrite !linear_eq.
-      apply functional_extensionality=>x.
-      by rewrite -!linCompChain !(isomlK _).
-    Qed.
-    
-    Lemma to_mapK : cancel from_map to_map.
-    Proof. rewrite/from_map/to_map=>f.
-      rewrite !linear_eq.
-      apply functional_extensionality=>x.
-      by rewrite -!linCompChain !(isomKl _).
-    Qed.
-  End MatrixConversion.
+      Definition from_map (f : {linear (vector_lmodType R m) -> (vector_lmodType R n)}) : {linear M -> N}
+        := inv(to_row En) \oLin f \oLin (to_row Em).
+
+      Lemma from_mapK : cancel to_map from_map.
+      Proof. rewrite/from_map/to_map=>/=f.
+        rewrite !linear_eq.
+        apply functional_extensionality=>x.
+        by rewrite -!linCompChain !(isomlK _).
+      Qed.
+      
+      Lemma to_mapK : cancel from_map to_map.
+      Proof. rewrite/from_map/to_map=>f.
+        rewrite !linear_eq.
+        apply functional_extensionality=>x.
+        by rewrite -!linCompChain !(isomKl _).
+      Qed.
+    End MatrixConversion.
   End Def.
 End freeLinear.
-
-
-
 
 
 (*
@@ -657,9 +608,8 @@ Module dsFdFreeLmod.
           rewrite !big_nil {1}/eq_op/= -(rwP andP)=>H;
           apply (proj1 H).
           destruct a; [rewrite fsFun.foldL_consl|rewrite fsFun.foldL_consr];
-            rewrite !big_cons;
-            rewrite /(scale _)/=/scale_pair/= scaler0 addrC eq_sym -subr_eq /(add _)/=/add_pair/= subr0 eq_sym=>H;
-            move: (IHh _ _ H) => G//.
+            rewrite !big_cons /(scale _)/=/scale_pair/= scaler0 addrC eq_sym -subr_eq /(add _)/=/add_pair/= subr0 eq_sym=>H;
+            move: (IHh _ _ H)=> G//.
             by rewrite eq_sym subr_eq eq_sym addrC in G.
 
           refine(ex_intro _ (fsFun.foldR h) _).
@@ -701,8 +651,8 @@ Module dsFdFreeLmod.
     Section Results.
       Variable (R : ringType).
       Variable (M1 M2 : fdFreeLmodType R).
-      Definition inj1 : {linear M1 -> fdFreeLmod M1 M2} := dsLmod.Pair.inj1 M1 M2.
-      Definition inj2 : {linear M2 -> fdFreeLmod M1 M2} := dsLmod.Pair.inj2 M1 M2.
+      Definition incl1 : {linear M1 -> fdFreeLmod M1 M2} := dsLmod.Pair.incl1 M1 M2.
+      Definition incl2 : {linear M2 -> fdFreeLmod M1 M2} := dsLmod.Pair.incl2 M1 M2.
 
       Definition proj1 : {linear fdFreeLmod M1 M2 -> M1} := dsLmod.Pair.proj1 M1 M2.
       Definition proj2 : {linear fdFreeLmod M1 M2 -> M2} := dsLmod.Pair.proj2 M1 M2.

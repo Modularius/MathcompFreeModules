@@ -1,25 +1,27 @@
 (******************************************************************************)
-(**)
+(* Dr Daniel Kirk (c) 2021                                                    *)
 (******************************************************************************)
-(* Let R : ringType and M : lmodType R                                        *)
+(* ringIBN.axiom R == for a ring R, a proposition that:                       *)
+(*                    forall n m : nat,                                       *)
+(*                       lmodIsomType R\lmod^n R\lmod^m -> n == m             *)
+(* ringIBNType     == a record consisting of a ringType 'sort' and a proof    *)
+(*                    that (ringIBN.axiom sort holds).                        *)
+(*                    R : ringIBN coerces to ringType                         *)
 (******************************************************************************)
-(* R\lmod^n     ==                                                            *)
-(* ringIBNType  == a record consisting of a ringType 'sort' and a proof that  *)
-(*                 forall n m : nat,                                          *)
-(*                  lmodIsomType R\lmod^n R\lmod^m -> n == m                  *)
-(*                 R : ringIBN coerces to ringType                            *)
-(* Every commutative ring satisfies the IBN condition so (R : comRingType)    *)
-(* coerces to ringIBNType via cRingToRingIBN                                  *)
-(* cRingToRingIBN R == given R : comRingType, this is a ringIBNType           *)
+(* IBN_equiv_equal_basis_nums == proof that all bases of M have the same size *)
 (******************************************************************************)
-(* Let R : ringIBNType, and let M : fdFreeLmodType R                          *) 
+(* Let R : ringIBNType, and let A, B : fdFreeLmodType R                       *)
 (******************************************************************************)
-(* steinitz_exchange M == proof that all bases of M have the same size        *)
-(* invariant_dimension M == proof that all bases of M have the same size      *)
-(* \dim(M) == the unique basis number of M                                    *)
-(* dim_of_oplus == proof \dim(A \oplus B) = \dim(A) + \dim(B)                 *)
-(* dim_of_bigoplus == proof \dim(\bigoplus_F I) = \sum_(f : F)\dim(I f)       *)
-(* rank_nullity f == proof that \dim(A) = \dim(\ker(f)) + \dim(\im(f))        *)
+(* \dim(A)         == the unique basis number of M                            *)
+(* dim_of_oplus    == proof that \dim(A \oplus B) = \dim(A) + \dim(B)         *)
+(******************************************************************************)
+(* Let I : linIsomType A B                                                    *)
+(******************************************************************************)
+(* dim_of_isom I   == proof that \dim(A) = \dim(B)                            *)
+(******************************************************************************)
+(* Let F : finType and I : F -> fdFreeLmodType R                              *)
+(******************************************************************************)
+(* dim_of_bigoplus == proof that \dim(\bigoplus_F I) = \sum_(f : F)\dim(I f)  *)
 (******************************************************************************)
 
 From Coq.Logic Require Import ProofIrrelevance FunctionalExtensionality.
@@ -75,7 +77,7 @@ Module ringIBN.
   End Result.
 
   Module Exports.
-    Notation "'\' 'dim' '(' M ')'" := (lmodFinBasis.basis_number (fdBasis M)) (at level 0, format "'\' 'dim' '(' M ')'") : lmod_scope.
+    Notation "'\' 'dim' '(' M ')'" := (basis_number (fdBasis M)) (at level 0, format "'\' 'dim' '(' M ')'") : lmod_scope.
     Notation ringIBNType := type.
     Coercion sort : type >-> ringType.
     Coercion class_of : type >-> mixin.
@@ -85,20 +87,30 @@ Module ringIBN.
     Variable (R : type).
     Export Exports.
     Open Scope nat_scope.
-    Lemma dim_of_DSPair : forall (M1 M2 : fdFreeLmodType R),
+    Lemma dim_of_oplus : forall (M1 M2 : fdFreeLmodType R),
     \dim(M1 \foplus M2) = \dim(M1) + \dim(M2).
     Proof. move=> M1 M2.
       by rewrite /dsFdFreeLmod.Pair.fdFreeLmod/lmodFinBasis.basis_number card_sum.
     Qed.
 
-    Lemma dim_of_DS : forall {F : finType} (I : F -> fdFreeLmodType R),
+    Lemma dim_of_bigoplus : forall {F : finType} (I : F -> fdFreeLmodType R),
       \dim(\fbigoplus I) = \sum_f (\dim(I f)).
     Proof. move => F I.
       rewrite /dsFdFreeLmod.type/dsFdFreeLmod.Seq.fdFreeLmod -big_enum enumT =>/=.
       induction(Finite.enum F); by [
       rewrite /lmodFinBasis.basis_number big_nil card_void|
-      rewrite big_cons -IHl -dim_of_DSPair /dsFdFreeLmod.Pair.fdFreeLmod/dsFdFreeLmod.Seq.basis].
+      rewrite big_cons -IHl -dim_of_oplus /dsFdFreeLmod.Pair.fdFreeLmod/dsFdFreeLmod.Seq.basis].
     Qed.
+
+    Lemma dim_of_isom : forall (M1 M2 : fdFreeLmodType R) (I : linIsomType M1 M2),
+      \dim(M1) = \dim(M2).
+    Proof. move=>M1 M2 I.
+      move:(linIsom.Concat (linIsom.Concat (linIsom.Invert (freeLinear.to_row (fdFreeLmod.erefl M1))) I) (freeLinear.to_row (fdFreeLmod.erefl M2)))=>II.
+      destruct R as [R' [A]].
+      move:(A _ _ II)=>B; move/eqP in B.
+      by rewrite /basis_number !cardT.
+    Qed.
+
 
     Close Scope nat_scope.
   End Results.

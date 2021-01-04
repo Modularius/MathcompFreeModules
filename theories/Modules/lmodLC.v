@@ -1,5 +1,5 @@
 (******************************************************************************)
-(**)
+(* Dr Daniel Kirk (c) 2021                                                    *)
 (******************************************************************************)
 (* Let R : ringType and M : lmodType R                                        *)
 (******************************************************************************)
@@ -19,10 +19,10 @@
 (******************************************************************************)
 (* Let f : B -> R and s : seq B                                               *)
 (******************************************************************************)
-(*      sumsTo C m       == a proof that there exists a sequence (s : seq B)  *)
+(*  lmodLCsumsTo C m  == a proof that there exists a sequence (s : seq B)  *)
 (*                          without duplicates such that (hasSupport C s) and *)
 (*                               \sum_(b <- s)(C b) *: (B b) == m.            *)
-(* finSuppsSumToEq s1 s2 == given proofs of (hasSupport C s1) and             *)
+(*  eqLCSumsTo s1 s2  == given proofs of (hasSupport C s1) and             *)
 (*                          (hasSupport C s2) this is a proof of              *)
 (*                          \sum_(b <- s1)(C b) *: (B b)                      *)
 (*                            = \sum_(b <- s2)(C b) *: (B b)                  *)
@@ -43,7 +43,7 @@
 
 Require Import Coq.Program.Tactics.
 From Coq.Logic Require Import FunctionalExtensionality ProofIrrelevance.
-From mathcomp Require Import ssreflect ssrfun eqtype fintype seq bigop.
+From mathcomp Require Import ssreflect ssrfun eqtype fintype seq bigop choice.
 
 Require Import Modules Linears FiniteSupport.
 
@@ -183,7 +183,7 @@ Module lmodLC.
 
 
     Section SumsTo.
-      Lemma finSuppsSumToZero (C : B -> R) s : (hasSupport C s) -> (hasSupport C nil)
+      Lemma zeroLCSumsTo (C : B -> R) s : (hasSupport C s) -> (hasSupport C nil)
         -> \sum_(b <- s)(C b) *: (B b) == 0.
       Proof. rewrite/hasSupport=>H1 H2.
         induction s. by rewrite big_nil.
@@ -284,21 +284,21 @@ Module lmodLC.
             move/hasPn in U1.
             move:(U1 a P).
             by rewrite /= mem_seq1 eq_refl.
-        
-        rewrite (undup_id U1) big_cons eq_refl E1 (rwP eqP) subr_eq addrC addrA scaleNr addrN add0r !big_seq -(rwP eqP).
+
+        rewrite (undup_id U1) E1 big_cons eq_refl (rwP eqP) subr_eq addrC addrA scaleNr addrN add0r !big_seq -(rwP eqP).
         apply eq_bigr=>i P.
         case(i == a) as []eqn:F=>//.
         by move/eqP in F; rewrite -F P in E1.
       Qed.
 
-      Lemma finSuppsSumToEq (C : B -> R) s1 s2 : (hasSupport C s1) -> (hasSupport C s2)
+      Lemma eqLCSumsTo (C : B -> R) s1 s2 : (hasSupport C s1) -> (hasSupport C s2)
       -> uniq s1 -> uniq s2
       -> \sum_(b <- s1)(C b) *: (B b) = \sum_(b <- s2)(C b) *: (B b).
       Proof.
         move:C s1.
         induction s2=>C s1 H1 H2 U1 U2.
         rewrite big_nil (rwP eqP).
-        apply (finSuppsSumToZero H1 H2).
+        apply (zeroLCSumsTo H1 H2).
         simpl in U2; move/andP in U2.
         case(C a == 0) as []eqn:E.
         move: (fsFun.finSupp_cons H2 E)=>H2c.
@@ -336,8 +336,8 @@ Module lmodLC.
       rewrite /(fsFun.add _)/=.
       under eq_bigr do rewrite GRing.scalerDl.
       rewrite big_split/=.
-      rewrite (finSuppsSumToEq _ (fsFun.hasSupport_undup (fsFun.hasSupport_catl sn Hm))) in Sm=>//; [|by apply undup_uniq].
-      rewrite (finSuppsSumToEq _ (fsFun.hasSupport_undup (fsFun.hasSupport_catr sm Hn))) in Sn=>//; [|by apply undup_uniq].
+      rewrite (eqLCSumsTo _ (fsFun.hasSupport_undup (fsFun.hasSupport_catl sn Hm))) in Sm=>//; [|by apply undup_uniq].
+      rewrite (eqLCSumsTo _ (fsFun.hasSupport_undup (fsFun.hasSupport_catr sm Hn))) in Sn=>//; [|by apply undup_uniq].
       move/eqP in Sm; move/eqP in Sn.
       by rewrite Sm Sn.
     Qed.
@@ -410,3 +410,6 @@ Module lmodLC.
 
 End lmodLC.
 Export lmodLC.Exports.
+
+Notation lmodLCSumsTo := lmodLC.sumsTo.
+Notation eqLCSumsTo := lmodLC.eqLCSumsTo.

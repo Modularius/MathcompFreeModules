@@ -1,22 +1,23 @@
 (******************************************************************************)
-(**)
+(* Dr Daniel Kirk (c) 2021                                                    *)
 (******************************************************************************)
 (* Let R : ringType and B : eqType                                            *)
 (******************************************************************************)
-(* hasSupport f s == propositions stating that (s : seq B) contains at    *)
+(* hasSupport f s == propositions stating that (s : seq B) contains at        *)
 (*                       least the support of (f : B -> R), that is           *)
 (*                       forall b : B, ~~(f b == 0) -> b \in s                *)
-(*    finSuppE f  == an existential proposition guaranteeing the          *)
+(*    finSuppE f  == an existential proposition guaranteeing the              *)
 (*                       existance of a duplicate-free sequence of B          *)
 (*                       containing the support of (f : B -> R), that is      *)
 (*                       the support of (f : B -> R), that is                 *)
 (*                       exists (s : seq B) (_ : uniq B), hasSupport f s      *)
-(*    FSType B    == a record consisting of a function (sort : B -> R),   *)
+(*    FSType B    == a record consisting of a function (sort : B -> R),       *)
 (*                       and a proof of finSuppE sort                         *)
-(*  nullFSType B  == the null function with trivial finite support        *)
-(* unitFSType NZ  == the function with one non-trivial value    *)
+(*  nullFSType B  == the null function with trivial finite support            *)
+(* unitFSType b r == the function with one non-trivial value, that is b |-> r *)
+(*                   and b' |-> 0 for all b' != b                             *)
 (******************************************************************************)
-(* Let s1 s2 : seq B                                                      *)
+(* Let s1 s2 : seq B                                                          *)
 (******************************************************************************)
 (* hasSupport_catl s1 s2 == hasSupport f s1 -> hasSupport f (s1 ++ s2)        *)
 (* hasSupport_catl s1 s2 == hasSupport f s2 -> hasSupport f (s1 ++ s2)        *)
@@ -24,12 +25,14 @@
 (******************************************************************************)
 (* Let r : R and C D : FSType B                                               *)
 (******************************************************************************)
-(*   C + D     == the FSType that results from adding the underlying function *)
-(*                component-wise                                              *)
-(*   r *: C    == the FSType that results from adding the underlying function *)
-(*                component-wise                                              *)
-(* C \oplus D  == the FSType (B + B) that results from constructing the       *)
-(*                disjoint sum of C and D                                     *)
+(*   C <+> D    == the FSType that results from adding the underlying         *)
+(*                 component-wise                                             *)
+(*   r <*:> C   == the FSType that results from adding the underlying         *)
+(*                 function component-wise                                    *)
+(* C <\oplus> D == the FSType (B + B) that results from constructing the      *)
+(*                 disjoint sum of C and D                                    *)
+(*  eqFSFun C D == a lemma giving the equivance of C = D as FSTypes and as    *)
+(*                 functions. Often used along with functional_extensionality *)
 (******************************************************************************)
 
 
@@ -58,7 +61,7 @@ Module fsFun.
     Variable (R : ringType) (B : eqType).
 
     Definition hasSupport (f : B -> R) (s : seq B) := forall b : B, (f b != 0) -> (b \in s).
-    Definition finSuppE (f : B -> R) := exists (s : seq B) (U : uniq s), hasSupport f s.
+    Definition finSuppE (f : B -> R) := exists (s : seq B), uniq s /\ hasSupport f s.
     Record type := Pack {
       sort : B -> R;
       hasFiniteSupport : finSuppE sort;
@@ -80,8 +83,7 @@ Module fsFun.
 
     Lemma null_finSuppE : finSuppE (fun _ : B => 0 : R).
     Proof. rewrite/finSuppE.
-      refine(ex_intro _ nil _).
-      refine(ex_intro _ is_true_true _).
+      refine(ex_intro _ nil _); split=>//.
       by rewrite/hasSupport eq_refl/=.
     Qed.
 
@@ -90,12 +92,11 @@ Module fsFun.
 
   Section Singleton.
     Variable (R : ringType) (B : eqType)
-      (b : B) (r : R) (NZ : r != 0).
+      (b : B) (r : R).
 
     Lemma unit_finSuppE : finSuppE (fun b' : B => if b' == b then r else 0).
     Proof. rewrite/finSuppE.
-      refine(ex_intro _ [::b] _).
-      refine(ex_intro _ is_true_true _).
+      refine(ex_intro _ [::b] _); split=>//.
       rewrite/hasSupport =>b'.
       case (b' == b) as []eqn:E.
       move/eqP in E; destruct E.
@@ -182,8 +183,7 @@ Module fsFun.
     Variable (R : ringType) (B : eqType) (C D : type R B).
     Lemma addFS : finSuppE (fun b => (C b) + (D b)).
     Proof. destruct C as [c [sc [CU CC]]], D as [d [sd [DU DD]]].
-      refine(ex_intro _ (undup(sc ++ sd)) _).
-      refine(ex_intro _ (undup_uniq (sc ++ sd)) _).
+      refine(ex_intro _ (undup(sc ++ sd)) _); split; [apply(undup_uniq _)|].
       move: CC DD.
       rewrite/hasSupport/==> CC DD b H.
       case(~~(c b == 0)) as []eqn:E.
@@ -201,8 +201,7 @@ Module fsFun.
     Variable (R : ringType) (B : eqType) (r : R) (C : type R B).
     Lemma scaleFS : finSuppE (fun b => r * (C b)).
     Proof. destruct C as [c [sc [UC CC]]].
-      refine(ex_intro _ sc _).
-      refine(ex_intro _ UC _).
+      refine(ex_intro _ sc _); split=>//.
       move: CC.
       rewrite/hasSupport/==> CC b H.
       case(~~(c b == 0)) as []eqn:E.
@@ -242,7 +241,7 @@ Module fsFun.
         Lemma sumFS : finSuppE sum_fn.
         Proof. rewrite/sum_fn.
           destruct C1 as [c1 [s1 [U1 S1]]], C2 as [c2 [s2 [U2 S2]]].
-          refine(ex_intro _ (sum_seq s1 s2) (ex_intro _ (sum_uniq U1 U2) _)).
+          refine(ex_intro _ (sum_seq s1 s2) _); split; [apply (sum_uniq U1 U2)|].
           move=>b C; destruct b.
           move:(S1 s C)=>D.
           apply (map_f (@inl B1 B2)) in D.
@@ -298,9 +297,7 @@ Module fsFun.
 
         Lemma lsumFS : finSuppE (C \o inl).
         Proof. destruct C as [c [s [U S]]].
-          refine(ex_intro _ (foldL s) _)=>/=.
-          refine(ex_intro _ (foldL_uniq U) _).
-          apply (foldL_fs S).
+          refine(ex_intro _ (foldL s) _); split; [apply(foldL_uniq U)|apply(foldL_fs S)].
         Qed.
 
         Definition foldFSl := Pack lsumFS.
@@ -347,9 +344,7 @@ Module fsFun.
 
         Lemma rsumFS : finSuppE (C \o inr).
         Proof. destruct C as [c [s [U S]]].
-          refine(ex_intro _ (foldR s) _)=>/=.
-          refine(ex_intro _ (foldR_uniq U) _).
-          apply (foldR_fs S).
+          refine(ex_intro _ (foldR s) _); split; [apply(foldR_uniq U)|apply(foldR_fs S)].
         Qed.
 
         Definition foldFSr := Pack rsumFS.
@@ -379,9 +374,10 @@ Module fsFun.
 End fsFun.
 Export fsFun.Exports.
 Notation hasSupport := fsFun.hasSupport.
-Notation hasFinSuppE := fsFun.finSuppE.
+Notation finSuppE := fsFun.finSuppE.
 Notation nullFSType := fsFun.null.
 Notation unitFSType := fsFun.unit.
+Notation eqFSFun := fsFun.eqFSFun.
 Infix "<+>" := fsFun.add (at level 39) : lmod_scope.
 Infix "<*:>" := fsFun.scale (at level 39) : lmod_scope.
 Infix "<\oplus>" := (fsFun.sum) (at level 39) : lmod_scope.

@@ -1,5 +1,5 @@
 (******************************************************************************)
-(**)
+(* Dr Daniel Kirk (c) 2021                                                    *)
 (******************************************************************************)
 (* Let R : ringType and M : lmodType R                                        *)
 (******************************************************************************)
@@ -17,44 +17,26 @@
 (* typeIsNonDegenerate S == the proof that S is non_degenerate                *)
 (* typeIsInjective S == the proof that S  is injective                        *)
 (******************************************************************************)
-(* lmodOrthoType S == a record consisting of a function                       *)
-(*                    'proj' : S -> {scalar M} and a proof of                 *)
-(*                    (orthonormP proj)                                       *)
-(*                    orthonormP proj == forall b1 b2 : S, proj b1 (S b2)     *)
-(*                                         = if b1 == b2 then 1 else 0        *)
-(*                    O : lmodOrthoType S coerces to S                        *)
-(*                    so b : O and O b work as for lmodSetType                *)
+(*        li B     ==  forall C : lmodLCType B, lmodLC.li C.                  *)
+(*      span B     ==  forall m : M, {C : lmodLCType B |lmodLC.sumsTo C m}    *)
+(* lmodBasisType M == a record consisting of an lmodSetType sort and proofs   *)
+(*                    of li sort and span sort                                *)
 (******************************************************************************)
-(* Let O : lmodOrthoType S                                                    *)
+(* Let B : lmodBasisType M                                                    *)
 (******************************************************************************)
-(* orthonormP O     == orthonormP (lmodBasisProj O)                          *)
-(* lmodBasisProj O  == the 'proj : O -> {scalar M} function                   *)
-(* \basisProj_b^(O) == lmodBasisProj O b : {scalar M}                         *)
-(* typeIsNonDegenerate O == the proof that O is non_degenerate                *)
-(* typeIsInjective O == the proof that O is injective                         *)
-(******************************************************************************)
-(* lmodBasisType O == a record consisting of a proof of                       *)
-(*                    basisP (lmodBasisProj O)                                *)
-(*                    basisP proj == forall m1 m2 : M,                        *)
-(*                      reflect (forall b : O, proj b m1 = proj b m2)         *)
-(*                              (m1 == m2)                                    *)
-(*                    B : lmodBasisType O coerces to O                        *)
-(*                    so b : B and B b work as for lmodSetType                *)
-(******************************************************************************)
-(* Let B : lmodBasisType O                                                    *)
-(******************************************************************************)
-(* basisP B              == basisP (lmodBasisProj O)                          *)
-(* lmodBasisProj B       == the 'proj : B -> {scalar M} function              *)
-(* \basisProj_b^(B)      == lmodBasisProj B b : {scalar M}                    *)
-(* typeIsNonDegenerate B == the proof that B is non_degenerate                *)
-(* typeIsInjective B     == the proof that B is injective                     *)
+(*    basisLI B    ==  given (C : lmodLC B) and a proof of (lmodLCSumsTo C 0) *)
+(*                       returns proof of (C = nullFSType B)                  *)
+(*  basisSpanLC B  ==  given m : M, returns (C : lmodLC B) such that          *)
+(*                      (lmodLCSumsTo C m) is true                            *)
+(*  basisSpanEq B  ==  given m : M returns a proof of                         *)
+(*                          (lmodLCSumsTo (hasSpanLC B m) m)                  *)
 (******************************************************************************)
 (* lmodFinSetType M == a record consisting of a finType 'sort' and the        *)
 (*                     mixin of an lmodSetType for type sort.                 *)
 (*                     F : lmodBasisType M coerces to an lmodSetType          *)
 (*                     so f : F and F f work as for lmodSetType               *)
 (*                     However lmodFinSetType does not coerce to a finType    *)
-(*                     There is an explicit function for this *)
+(*                     There is an explicit function for this                 *)
 (******************************************************************************)
 (* Let F : lmodFinSetType M                                                   *)
 (******************************************************************************)
@@ -69,13 +51,9 @@
 (*  finBasis_to_ord K f == ordinal of 'I_n corresponding to f : F             *)
 (*  ord_to_finBasis K i == element of F corresponding to i : 'I_n             *)
 (******************************************************************************)
-(* lmodFinBasisType O == a record consisting of a proof of                    *)
-(*                    basisP (lmodBasisProj O)                                *)
-(*                    basisP proj == forall m1 m2 : M,                        *)
-(*                      reflect (forall b : O, proj b m1 = proj b m2)         *)
-(*                              (m1 == m2)                                    *)
-(*                    B : lmodBasisType O coerces to O                        *)
-(*                    so b : B and B b work as for lmodSetType                *)
+(* lmodFinBasisType M == a record consisting of a lmodFinSetType sort and     *)
+(*                       a mixin of lmodBasisType for sort (which coerces to  *)
+(*                       lmodSetType M)                                       *)
 (******************************************************************************)
 (* Let B : lmodFinBasisType M                                                 *)
 (******************************************************************************)
@@ -86,7 +64,7 @@
 
 Require Import Coq.Program.Tactics.
 From Coq.Logic Require Import FunctionalExtensionality ProofIrrelevance.
-From mathcomp Require Import ssreflect ssrfun eqtype fintype seq bigop finset.
+From mathcomp Require Import ssreflect ssrfun eqtype fintype seq bigop.
 
 Require Import Modules Linears FiniteSupport lmodLC.
 
@@ -153,6 +131,9 @@ Module lmodBasis.
 
   Module Exports.
     Notation lmodBasisType := type.
+    Notation basisLI := hasLI.
+    Notation basisSpanLC := hasSpanLC.
+    Notation basisSpanEq := hasSpanEq.
     Coercion sort : type >-> lmodSetType.
     Coercion class_of : type >-> mixin.
   End Exports.
@@ -179,9 +160,9 @@ Module lmodBasis.
         /(fsFun.hasSupport_catl cd)/fsFun.hasSupport_undup in Fd'.
 
       move:(fsFun.hasSupport_undup (fsFun.hasSupport_catr (undup (c ++ d)) Fcd))=>Fcd'.
-      rewrite (lmodLC.finSuppsSumToEq Fc Fc' Uc (undup_uniq _)) in Ex; move/eqP in Ex.
-      rewrite (lmodLC.finSuppsSumToEq Fd Fd' Ud (undup_uniq _)) in Ey; move/eqP in Ey.
-      rewrite (lmodLC.finSuppsSumToEq Fcd Fcd' Ucd (undup_uniq _)) in Exy.
+      rewrite (eqLCSumsTo Fc Fc' Uc (undup_uniq _)) in Ex; move/eqP in Ex.
+      rewrite (eqLCSumsTo Fd Fd' Ud (undup_uniq _)) in Ey; move/eqP in Ey.
+      rewrite (eqLCSumsTo Fcd Fcd' Ucd (undup_uniq _)) in Exy.
       move: Exy; rewrite -{3}Ex-{3}Ey -big_split/= -subr_eq0 -sumrB.
       under eq_bigr do rewrite -scalerDl -scalerBl; move=>Exy.
 
@@ -198,8 +179,7 @@ Module lmodBasis.
       by apply (Fcd' b C).
 
       have E: fsFun.finSuppE (is_add_ind_fn (x + y) x y).
-      refine(ex_intro _ (undup (undup (c ++ d) ++ cd)) _).
-      apply(ex_intro _ (undup_uniq _) FS).
+      refine(ex_intro _ (undup (undup (c ++ d) ++ cd)) _); split=>//; apply (undup_uniq _).
 
       have S:lmodLCSumsTo (fsFun.Pack E) 0.
       refine(ex_intro _ (undup (undup (c ++ d) ++ cd)) (ex_intro _ (undup_uniq _) _)).
@@ -225,8 +205,8 @@ Module lmodBasis.
       move:(fsFun.hasSupport_undup (fsFun.hasSupport_catl d Fc))=>Fc'.
       move:(fsFun.hasSupport_undup (fsFun.hasSupport_catr c Fd))=>Fd'.
       
-      rewrite (lmodLC.finSuppsSumToEq Fc Fc' Uc (undup_uniq _)) in Ex; move/eqP in Ex.
-      rewrite (lmodLC.finSuppsSumToEq Fd Fd' Ud (undup_uniq _)) in Erx.
+      rewrite (eqLCSumsTo Fc Fc' Uc (undup_uniq _)) in Ex; move/eqP in Ex.
+      rewrite (eqLCSumsTo Fd Fd' Ud (undup_uniq _)) in Erx.
       move: Erx; rewrite -{3}Ex -subr_eq0 scaler_sumr -sumrB.
       under eq_bigr do rewrite scalerA -scalerBl; move=>Erx.
 
@@ -239,9 +219,8 @@ Module lmodBasis.
       rewrite Ec mulr0 subr0 in C.
       apply (Fd' b C).
 
-      have E: fsFun.finSuppE (is_sca_ind_fn r x).
-      refine(ex_intro _ (undup (c ++ d)) _).
-      apply(ex_intro _ (undup_uniq _) FS).
+      have E: finSuppE (is_sca_ind_fn r x).
+      refine(ex_intro _ (undup (c ++ d)) _); split=>//; apply (undup_uniq _).
 
       have S:lmodLCSumsTo (fsFun.Pack E) 0.
       refine(ex_intro _ (undup (c ++ d)) _);
@@ -306,7 +285,7 @@ Module lmodBasis.
     Proof. move=>H.
       move:(lmodBasis.hasSpanEq B x)=>Z.
       destruct Z as [s [U' [H' Z]]]; move/eqP in Z.
-      by rewrite -scaler_suml -linear_sum (lmodLC.finSuppsSumToEq H H' U U')-{2}Z.
+      by rewrite -scaler_suml -linear_sum (eqLCSumsTo H H' U U')-{2}Z.
     Qed.
   End Results.
 
@@ -344,13 +323,13 @@ Module lmodBasis.
       under eq_bigr do rewrite linearZ_LR/=(linIsom.isomfK f).
       rewrite(rwP eqP)=>/=S.
 
-      have J : hasFinSuppE coef by
-      apply (ex_intro _ s (ex_intro _ Us H)).
+      have J : finSuppE coef.
+      refine (ex_intro _ s _); split=>//.
 
       have K : lmodLCSumsTo (fsFun.Pack J) 0 by
       apply (ex_intro _ s (ex_intro _ Us (ex_intro _ H S))).
 
-      move:(hasLI K); by rewrite fsFun.eqFSFun.
+      move:(hasLI K); by rewrite eqFSFun.
     Qed.
 
     Lemma span_ : lmodBasis.span bset.
@@ -358,7 +337,7 @@ Module lmodBasis.
       destruct (hasSpanLC B (inv(f) m)) as [coef E].
       have FS: fsFun.finSuppE (B:=bset) coef by
       destruct E as [e [U F]];
-      apply(ex_intro _ e (ex_intro _ U F)).
+      refine(ex_intro _ e _); split=>//.
       refine (exist _ (fsFun.Pack FS) _).
       destruct X as [c [U [D S]]].
       refine (ex_intro _ c (ex_intro _ U (ex_intro _ D _))).
@@ -494,12 +473,10 @@ Module lmodFinBasis.
 
     Lemma finSuppP coef : fsFun.finSuppE (B:=T) coef <-> fsFun.finSuppE (R:=R) (B:=bset) coef.
     Proof. split=>H; destruct H as [s [U F]]; refine(ex_intro _ s _).
-      move/finSupp_uniqP in U.
-      refine(ex_intro _ U _).
+      move/finSupp_uniqP in U; split=>//.
       by move/hasFinSuppP in F.
 
-      move/finSupp_uniqP in U.
-      refine(ex_intro _ U _).
+      move/finSupp_uniqP in U; split=>//.
       by move/hasFinSuppP in F.
     Qed.
 

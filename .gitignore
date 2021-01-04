@@ -1,0 +1,13 @@
+*.vo
+*.aux
+*.vos
+*.vok
+*.glob
+*.v.d
+*.dvi
+*.pdf
+*.log
+*.d
+
+LaTeX/*
+theories/Examples/*

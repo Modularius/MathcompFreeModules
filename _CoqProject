@@ -12,6 +12,3 @@ theories/Modules/Basis.v
 theories/Modules/FreeModules.v
 theories/Modules/RingIBN.v
 theories/Modules/FormalLC.v
-
-theories/Examples/CRings.v
-theories/Examples/VectorSpaces.v

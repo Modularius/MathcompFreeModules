@@ -1,15 +1,21 @@
 (******************************************************************************)
-(**)
+(* Daniel Kirk (c) 2021                                                       *)
 (******************************************************************************)
 (* Let R : ringType and A B C : lmodType R                                    *)
 (* Let f : {linear A -> B} and g : {linear B -> C}                            *)
 (******************************************************************************)
 (* \1_A         == the linear identity : A -> A                               *)
-(* linIDChain   == *)
+(* linIDChain   == converts \1_A x to x. This is not done automatically by    *)
+(*                 simpl, as \1_A is locked to prevent the loss of the        *)
+(*                 linear structure when calling the tactic.                  *)
 (* \0_(A,B)     == the linear zero function : A -> B                          *)
-(* linZeroChain == *)
+(* linZeroChain == converts \0_(A,B) x to 0. This is not done automatically   *)
+(*                 by simpl, as \0_(A,B) is locked to prevent the loss of the *)
+(*                 linear structure when calling the tactic.                  *)
 (* g \oLin f    == the linear composition g \o f : {linear A -> C}            *)
-(* linCompChain == *)
+(* linCompChain == converts g \oLin f x to g (f x). This is not done          *)
+(*                 automatically by simpl, as g \oLin f is locked to prevent  *)
+(*                 the loss of the linear structure when calling the tactic.  *)
 (******************************************************************************)
 (* Let f g : {linear A -> B}                                                  *)
 (******************************************************************************)
@@ -32,7 +38,19 @@
 (* isomKf         ==  forall x : B, isom_mapI (isom_map x) = x                *)
 (* isomlK         ==  forall x : A, f (inv(f) x) = x                          *)
 (* isomKl         ==  forall x : B, inv(f) (f x) = x                          *)
-(* linIsomConcat  ==                                   *)
+(******************************************************************************)
+(* Let f : linIsomType A B and g : linIsomType B C                            *)
+(******************************************************************************)
+(* g \oLinIsom f  == the linIsomType A C from composing g with f              *)
+(* \invLin(f)     == the linIsomType B A from inverting f                     *)
+(******************************************************************************)
+(* Let R : ringType and M1 M2 N : lmodType R                                  *)
+(******************************************************************************)
+(* \bilinear(M1 -> M2 -> N) ==  a type representing a bilinear map            *)
+(*                              from M1*M2 to N, that is a binary function    *)
+(*                              M1 -> M2 -> N which is linear in both         *)
+(*                              arguments.                                    *)
+(******************************************************************************)
 
 
 Require Import Coq.Program.Tactics.
@@ -204,15 +222,19 @@ Notation isom_concatKl := (linIsom.concatKl).
 Coercion linIsom.class_of : linIsomType >-> linIsom.mixin.
 Coercion linIsom.isom_linmap : linIsomType >-> GRing.Linear.map.
 Notation "inv( f )" := (isom_linmapI f) (at level 36, right associativity) : lmod_scope.
+Infix "\oLinIsom" := (linIsomConcat) (at level 36, right associativity) : lmod_scope.
+Notation "\invLin( f )" := (linIsomInvert f) (at level 36, right associativity) : lmod_scope.
+
+
 
 Module BilinearMap.
-Section Def.
+  Section Def.
     Variable (R : ringType) (M1 M2 N: lmodType R).
     Record mixin  (f : M1 -> M2 -> N)
-   := Mixin {
-      linear1 : forall m2, linear (f^~m2);
-      linear2 : forall m1, linear (f m1);
-      }.
+    := Mixin {
+        linear1 : forall m2, linear (f^~m2);
+        linear2 : forall m1, linear (f m1);
+        }.
     Record type := Pack { map : _ ; class_of : mixin map; }.
     Definition bilinear (f : M1 -> M2 -> N) := (forall m2, linear (f^~m2)) /\ (forall m1, linear (f m1)).
 

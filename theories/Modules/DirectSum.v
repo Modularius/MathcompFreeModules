@@ -1,5 +1,5 @@
 (******************************************************************************)
-(**)
+(* Dr Daniel Kirk (c) 2021                                                    *)
 (******************************************************************************)
 (*         M1 \oplus M2 == the lmodType given by pair_lmodType in ssralg.v    *)
 (*                         This is an implementation of the direct sum of two *)
@@ -154,17 +154,17 @@ Reserved Notation "\proj^( I )_ f "
 (at level 36, f at level 36, I at level 36,
   format "'[' \proj^( I )_ f ']'").
 
-Reserved Notation "\inj^( I )_ f "
+Reserved Notation "\incl^( I )_ f "
 (at level 36, f at level 36, I at level 36,
-  format "'[' \inj^( I )_ f ']'").
+  format "'[' \incl^( I )_ f ']'").
 
 Reserved Notation "\proj_ f ^( I ) "
 (at level 36, f at level 36, I at level 36,
   format "'[' \proj_ f '^(' I ) ']'").
 
-Reserved Notation "\inj_ f ^( I )"
+Reserved Notation "\incl_ f ^( I )"
 (at level 36, f at level 36, I at level 36,
-  format "'[' \inj_ f '^(' I ) ']'").
+  format "'[' \incl_ f '^(' I ) ']'").
 
 Module dsLmod.
   Module Pair.
@@ -172,25 +172,25 @@ Module dsLmod.
       Variable (R : ringType) (m1 m2 : lmodType R).
 
       Section Injection.
-        Definition inj1_raw := fun x : m1 => (x,zero m2) : pair_lmodType m1 m2.
-        Definition inj2_raw := fun x : m2 => (zero m1, x) : pair_lmodType m1 m2.
+        Definition incl1_raw := fun x : m1 => (x,zero m2) : pair_lmodType m1 m2.
+        Definition incl2_raw := fun x : m2 => (zero m1, x) : pair_lmodType m1 m2.
 
-        Lemma inj1_lin : linear inj1_raw.
+        Lemma incl1_lin : linear incl1_raw.
         Proof. rewrite /(additive (pair^~0%R))/morphism_2=>r x y.
           rewrite /scale/add=>/=.
           by rewrite /add_pair/scale_pair scaler0 addr0. Qed.
-        Lemma inj2_lin : linear inj2_raw.
+        Lemma incl2_lin : linear incl2_raw.
         Proof. rewrite /(additive (pair^~0%R))/morphism_2=>r x y.
           rewrite /scale/add=>/=.
           by rewrite /add_pair/scale_pair scaler0 addr0. Qed.
 
-        Lemma inj1_injective : injective inj1_raw.
+        Lemma incl1_injective : injective incl1_raw.
         Proof. by move=>x y H; inversion H. Qed.
-        Lemma inj2_injective : injective inj2_raw.
+        Lemma incl2_injective : injective incl2_raw.
         Proof. by move=>x y H; inversion H. Qed.
 
-        Definition inj1 := Linear inj1_lin.
-        Definition inj2 := Linear inj2_lin.
+        Definition incl1 := Linear incl1_lin.
+        Definition incl2 := Linear incl2_lin.
       End Injection.
 
       Section Projection.
@@ -205,16 +205,14 @@ Module dsLmod.
         Definition proj1 := Linear proj1_lin.
         Definition proj2 := Linear proj2_lin.
 
-        Lemma proj1_inj1K x : proj1 (inj1 x) = x. Proof. by []. Qed.
-        Lemma proj2_inj2K x : proj2 (inj2 x) = x. Proof. by []. Qed.
-        Lemma proj1_inj20 x : proj1 (inj2 x) = 0. Proof. by []. Qed.
-        Lemma proj2_inj10 x : proj2 (inj1 x) = 0. Proof. by []. Qed.
+        Lemma proj1_incl1K x : proj1 (incl1 x) = x. Proof. by []. Qed.
+        Lemma proj2_incl2K x : proj2 (incl2 x) = x. Proof. by []. Qed.
+        Lemma proj1_incl20 x : proj1 (incl2 x) = 0. Proof. by []. Qed.
+        Lemma proj2_incl10 x : proj2 (incl1 x) = 0. Proof. by []. Qed.
       End Projection.
 
-      Lemma inj_proj_sum x : x = inj1 (proj1 x) + inj2 (proj2 x).
-      Proof.
-        rewrite /inj1/proj1/inj2/proj2/(add _)=>/=;
-        rewrite /add_pair addr0 add0r;
+      Lemma incl_proj_sum x : x = incl1 (proj1 x) + incl2 (proj2 x).
+      Proof. rewrite /(add _)/=/add_pair addr0 add0r;
         by destruct x.
       Qed.
     End Def.
@@ -225,7 +223,7 @@ Module dsLmod.
           (f1 : {linear M -> N1}) (f2 : {linear M -> N2}).
 
         Definition to_ds_raw : M -> (pair_lmodType N1 N2)
-          := fun x => (inj1 _ _ (f1 x)) + (inj2  _ _ (f2 x)).
+          := fun x => (incl1 _ _ (f1 x)) + (incl2  _ _ (f2 x)).
 
         Lemma to_ds_lin : linear to_ds_raw.
         Proof. rewrite/to_ds_raw=>r x y.
@@ -256,7 +254,7 @@ Module dsLmod.
           (f1 : {linear M1 -> N1}) (f2 : {linear M2 -> N2}).
 
         Definition diag_raw : (pair_lmodType M1 M2) -> (pair_lmodType N1 N2)
-          := fun x => (inj1 _ _ (f1 (proj1 _ _ x))) + (inj2 _ _ (f2 (proj2  _ _ x))).
+          := fun x => (incl1 _ _ (f1 (proj1 _ _ x))) + (incl2 _ _ (f2 (proj2  _ _ x))).
 
         Lemma diag_lin : linear diag_raw.
         Proof. rewrite/diag_raw=>r x y.
@@ -275,7 +273,7 @@ Module dsLmod.
         Proof.
           rewrite linear_eq.
           apply functional_extensionality=>x/=.
-          by rewrite /diag_raw /linID.map -!(lock) -(inj_proj_sum x).
+          by rewrite /diag_raw /linID.map -!(lock) -(incl_proj_sum x).
         Qed.
 
         Lemma diag_comp : (diag g1 g2) \oLin (diag f1 f2) = diag (g1 \oLin f1) (g2 \oLin f2).
@@ -321,36 +319,36 @@ Module dsLmod.
         End Def.
 
         Section Injection.
-        Fixpoint inj_raw (L : seq T) (n : nat) {struct n} :
+        Fixpoint incl_raw (L : seq T) (n : nat) {struct n} :
           Nth L n -> DS L
         := match L as LL return Nth LL n -> DS LL with
           |nil => fun _ => tt
           |a::L' => match n as nn return Nth (a::L') nn -> DS (a::L') with
-            |0    => fun x => @Pair.inj1 R (I a) (DS L') x
-            |S n' => fun x => @Pair.inj2 R (I a) (DS L') ((@inj_raw L' n') x)
+            |0    => fun x => @Pair.incl1 R (I a) (DS L') x
+            |S n' => fun x => @Pair.incl2 R (I a) (DS L') ((@incl_raw L' n') x)
             end
           end.
 
-          Lemma inj_lin (L : seq T) (n : nat) : linear (@inj_raw L n).
+          Lemma incl_lin (L : seq T) (n : nat) : linear (@incl_raw L n).
           Proof. move: n; induction L=>//=. {
             induction n=>//=. }
             move : L IHL; induction n=>//= r x y.
-            apply (linearP (@Pair.inj1 _ (I a) (DS L))).
-            by rewrite -(linearP (@Pair.inj2 _ (I a) (DS L))) (IHL n).
+            apply (linearP (@Pair.incl1 _ (I a) (DS L))).
+            by rewrite -(linearP (@Pair.incl2 _ (I a) (DS L))) (IHL n).
           Qed.
 
-          Lemma inj_injective
-            (L : seq T) (n : nat) : injective (@inj_raw L n).
+          Lemma incl_injective
+            (L : seq T) (n : nat) : injective (@incl_raw L n).
           Proof. move: n; induction L=>//=.
           { induction n; by move=> x y; destruct x, y. }
             move: L IHL.
             induction n=>/= x y H.
-            apply (@Pair.inj1_injective R _ _ x y H).
-            apply (IHL n x y (@Pair.inj2_injective R _ _ (@inj_raw L n x) (@inj_raw L n y) H)).
+            apply (@Pair.incl1_injective R _ _ x y H).
+            apply (IHL n x y (@Pair.incl2_injective R _ _ (@incl_raw L n x) (@incl_raw L n y) H)).
           Qed.
         End Injection.
-        Definition inj (L : seq T) (n : nat)
-          := Linear (@inj_lin L n).
+        Definition incl (L : seq T) (n : nat)
+          := Linear (@incl_lin L n).
 
         Section Projection.
           Fixpoint proj_raw (L : seq T) (n : nat) {struct n} :
@@ -381,61 +379,56 @@ Module dsLmod.
             Lemma nth_cons {a d} {n : nat} : seq.nth d (a::L) (S n) = seq.nth d L n.
             Proof. by induction n. Qed.
         
-            Lemma inj_cons n a x : @inj (a::L) (S n) x = Pair.inj2 (I a) _ (@inj L n x).
+            Lemma incl_cons n a x : @incl (a::L) (S n) x = Pair.incl2 (I a) _ (@incl L n x).
             Proof. by []. Qed.
         
-            Lemma proj_cons n a x : @proj (a::L) (S n) (Pair.inj2 (I a) _ x) = @proj L n x.
+            Lemma proj_cons n a x : @proj (a::L) (S n) (Pair.incl2 (I a) _ x) = @proj L n x.
             Proof. by []. Qed.
 
-            Lemma proj_inj_cons (n n' : nat) a x
-            : @proj (a::L) (n.+1) (@inj (a::L) (n'.+1) x) = @proj L n (@inj L n' x).
+            Lemma proj_incl_cons (n n' : nat) a x
+            : @proj (a::L) (n.+1) (@incl (a::L) (n'.+1) x) = @proj L n (@incl L n' x).
             Proof. by []. Qed.
           End Lemmas.
           Variable (L : seq T).
 
           (* The following two lemmas are used for cancellation *)
-          Lemma proj_injK_ofsize (n : 'I_(size L)) x : @proj L (nat_of_ord n) (@inj L (nat_of_ord n) x) = x.
+          Lemma proj_inclK_ofsize (n : 'I_(size L)) x : @proj L (nat_of_ord n) (@incl L (nat_of_ord n) x) = x.
           Proof.
-            induction L=>//; destruct n as [n N]=>//.
+            induction L; destruct n as [n N]=>//.
             induction n=>//; move:x; simpl (Ordinal N : nat)=>x.
             rewrite -ltn_predRL in N.
-            by rewrite proj_inj_cons (IHl (Ordinal N)).
+            by rewrite proj_incl_cons (IHl (Ordinal N)).
           Qed.
 
-          Lemma proj_inj0_ofsize (n n' : 'I_(size L)) x : (nat_of_ord n) != n' -> @proj L n (@inj L n' x) = 0.
+          Lemma proj_incl0_ofsize (n n' : 'I_(size L)) x : (nat_of_ord n) != n' -> @proj L n (@incl L n' x) = 0.
           Proof.
             induction L; destruct n as [n N], n' as [n' N']=>//.
             simpl in x, IHl, N, N'=>H.
-            induction n.
-              apply (rwP negP) in H.
-              by induction n'=>/=; [contradiction H|].
-            induction n'=>//=.
+            induction n; induction n'=>//.
               by (have: proj l n 0 = 0 by rewrite linear0).
-            clear IHn' IHn;
-            rewrite eqSS in H;
-            rewrite ltnS in N;
-            rewrite ltnS in N';
+            simpl; clear IHn' IHn; move: N' N H;
+            rewrite /=eqSS !ltnS=>N' N H.
             by apply (IHl (Ordinal N) (Ordinal N') x H).
           Qed.
           
           (* The following two lemmas are the same as above but more versitile,
           in that they don't require the index to be an ordinal of size L, simply
           that they are naturals less than size L *)
-          Lemma proj_injK (n : nat) x (M : n < size L) : @proj L n (@inj L n x) = x.
-          Proof. apply (@proj_injK_ofsize (Ordinal M)). Qed.
+          Lemma proj_inclK (n : nat) x (M : n < size L) : @proj L n (@incl L n x) = x.
+          Proof. apply (@proj_inclK_ofsize (Ordinal M)). Qed.
       
-          Lemma proj_inj0 m1 m2 (n : 'I_m1) (n' : 'I_m2) x (M1 : m1 <= (size L)) (M2 : m2 <= (size L))
-            : (nat_of_ord n) != n' -> @proj L n (@inj L n' x) = 0.
-          Proof. apply (@proj_inj0_ofsize (widen_ord M1 n) (widen_ord M2 n')). Qed.
+          Lemma proj_incl0 m1 m2 (n : 'I_m1) (n' : 'I_m2) x (M1 : m1 <= (size L)) (M2 : m2 <= (size L))
+            : (nat_of_ord n) != n' -> @proj L n (@incl L n' x) = 0.
+          Proof. apply (@proj_incl0_ofsize (widen_ord M1 n) (widen_ord M2 n')). Qed.
 
           (* this lemma expresses any element as a sum of projections *)
-          Lemma inj_proj_sum x : x = \sum_(n < size L) inj L (nat_of_ord n) (@proj L (nat_of_ord n) x).
+          Lemma incl_proj_sum x : x = \sum_(n < size L) incl L (nat_of_ord n) (@proj L (nat_of_ord n) x).
           Proof.
             induction L.
             by rewrite /size big_ord0; case x.
             destruct x as [Ia DSl].
             by rewrite big_ord_recl {1}(IHl DSl)
-            (Pair.inj_proj_sum (Ia, _)) linear_sum.
+            (Pair.incl_proj_sum (Ia, _)) linear_sum.
           Qed.
         End Results.
 
@@ -490,13 +483,13 @@ Module dsLmod.
 
           Definition split_raw : DS (L1 ++ L2) -> DS L1 \oplus DS L2
             := fun x =>
-            (\sum_(n < size L1)(inj L1 n \oLin catifyL1 n \oLin proj (L1 ++ L2) n ) x,
-            \sum_(n < size L2)(inj L2 n \oLin catifyL2 n \oLin proj (L1 ++ L2) (rshift (size L1) n)) x).
+            (\sum_(n < size L1)(incl L1 n \oLin catifyL1 n \oLin proj (L1 ++ L2) n ) x,
+            \sum_(n < size L2)(incl L2 n \oLin catifyL2 n \oLin proj (L1 ++ L2) (rshift (size L1) n)) x).
 
           Definition unsplit_raw : DS L1 \oplus DS L2 -> DS (L1 ++ L2)
           := fun x =>
-            \sum_(n < size L1)((inj (L1 ++ L2) n                     \oLin inv(catifyL1 n) \oLin proj L1 n) x.1) +
-            \sum_(n < size L2)((inj (L1 ++ L2) (rshift (size L1) n)  \oLin inv(catifyL2 n) \oLin proj L2 n) x.2).
+            \sum_(n < size L1)((incl (L1 ++ L2) n                     \oLin inv(catifyL1 n) \oLin proj L1 n) x.1) +
+            \sum_(n < size L2)((incl (L1 ++ L2) (rshift (size L1) n)  \oLin inv(catifyL2 n) \oLin proj L2 n) x.2).
 
           Lemma split_lin : linear split_raw.
           Proof. rewrite/split_raw=>r x y/=.
@@ -522,21 +515,21 @@ Module dsLmod.
             rewrite!pair_bigA.
             rewrite (eq_bigr (fun p : 'I_(size L1)*'I_(size L1)
             => if p.2 == p.1
-              then inj _ p.1 (proj _ p.1 x)
+              then incl _ p.1 (proj _ p.1 x)
               else 0 ) _).
             rewrite (eq_bigr (fun p : 'I_(size L2)*'I_(size L2)
               => if p.2 == p.1
-              then inj _ (rshift (size L1) p.2) (proj _ (rshift (size L1) p.2) x)
+              then incl _ (rshift (size L1) p.2) (proj _ (rshift (size L1) p.2) x)
               else 0 ) _).
-            by rewrite -!big_mkcond !big_pair_diag_eq {3}(@inj_proj_sum _ x)
+            by rewrite -!big_mkcond !big_pair_diag_eq {3}(@incl_proj_sum _ x)
             size_cat (@big_split_ord _ _ _ (size L1) (size L2)).
             by move=>p _; case (p.2 == p.1) as []eqn:E;
-            [apply (rwP eqP) in E; rewrite E proj_injK_ofsize (isomlK (catifyL2 p.1)) |
-            rewrite proj_inj0_ofsize; [rewrite !linear0|
+            [move/eqP in E; rewrite E proj_inclK_ofsize (isomlK (catifyL2 p.1)) |
+            rewrite proj_incl0_ofsize; [rewrite !linear0|
               rewrite eq_sym/eq_op in E; simpl in E; rewrite E]].
             by move=>p _; case (p.2 == p.1) as []eqn:E;
-            [ apply (rwP eqP) in E; rewrite E proj_injK_ofsize (isomlK (catifyL1 p.1))|
-            rewrite proj_inj0_ofsize; [rewrite !linear0|
+            [move/eqP in E; rewrite E proj_inclK_ofsize (isomlK (catifyL1 p.1))|
+            rewrite proj_incl0_ofsize; [rewrite !linear0|
               rewrite eq_sym/eq_op in E; simpl in E; rewrite E]].
           Qed.
 
@@ -549,18 +542,18 @@ Module dsLmod.
           rewrite !big_split !(eq_bigr _ (fun i _ => linear_sum _ _ _ _)) !pair_bigA.
           rewrite (eq_bigr (fun p : 'I_(size L1)*'I_(size L1)
           => if(p.2 == p.1)
-            then inj L1 p.1 (proj L1 p.1 x.1)
+            then incl L1 p.1 (proj L1 p.1 x.1)
             else 0) _).
           rewrite (eq_bigr (fun p : 'I_(size L2)*'I_(size L2)
           => if(p.2 == p.1)
-            then inj L2 p.2 (proj L2 p.2 x.2)
+            then incl L2 p.2 (proj L2 p.2 x.2)
             else 0) _).
           {
             destruct x as [x1 x2];
             rewrite -!big_mkcond !big_pair_diag_eq
-            (eq_bigr (fun p : 'I_(size L1) => inj _ p (proj _ p x1)) _);[|by move].
-            rewrite (eq_bigr (fun p : 'I_(size L2) => inj _ p (proj _ p x2)) _); [| by []].
-            rewrite {4}(inj_proj_sum x1) {4}(inj_proj_sum x2) (rwP eqP) /eq_op -(rwP andP).
+            (eq_bigr (fun p : 'I_(size L1) => incl _ p (proj _ p x1)) _);[|by move].
+            rewrite (eq_bigr (fun p : 'I_(size L2) => incl _ p (proj _ p x2)) _); [| by []].
+            rewrite {4}(incl_proj_sum x1) {4}(incl_proj_sum x2) (rwP eqP) /eq_op -(rwP andP).
             split; rewrite -subr_eq0.
 
             rewrite {1}addrC addrA addNr add0r (eq_bigr (fun _ => 0) _).
@@ -568,7 +561,7 @@ Module dsLmod.
             induction(Finite.enum _)=>//=; by rewrite add0r.
 
             move =>[[p1 H1] [p2 H2]] _;
-            rewrite -!linCompChain proj_inj0;[by rewrite !linear0 |by rewrite size_cat leq_addr|by rewrite size_cat|];
+            rewrite -!linCompChain proj_incl0;[by rewrite !linear0 |by rewrite size_cat leq_addr|by rewrite size_cat|];
             rewrite -(rwP negP)/not -(rwP eqP)=>/=N;
             by rewrite N -{2}(addn0 (size L1)) ltn_add2l in H1.
 
@@ -577,25 +570,25 @@ Module dsLmod.
             induction(Finite.enum _)=>//=; by rewrite add0r.
 
             move =>[[p1 H1] [p2 H2]] _;
-            rewrite -!linCompChain proj_inj0;[by rewrite !linear0 |by rewrite size_cat|by rewrite size_cat leq_addr|];
+            rewrite -!linCompChain proj_incl0;[by rewrite !linear0 |by rewrite size_cat|by rewrite size_cat leq_addr|];
             rewrite -(rwP negP)/not -(rwP eqP)=>/=N.
             by rewrite -N -{2}(addn0 (size L1)) ltn_add2l in H2.
           }
           move=>p _; case(p.2 == p.1) as []eqn:E.
-          apply (rwP eqP) in E; rewrite E -!linCompChain.
-          rewrite proj_injK; [by rewrite isomKl|].
+          move/eqP in E; rewrite E -!linCompChain.
+          rewrite proj_inclK; [by rewrite isomKl|].
           destruct p as [[p1 H1] [p2 H2]].
           by rewrite size_cat ltn_add2l.
-          rewrite -!linCompChain proj_inj0; [by rewrite !linear0|by rewrite size_cat|by rewrite size_cat|].
+          rewrite -!linCompChain proj_incl0; [by rewrite !linear0|by rewrite size_cat|by rewrite size_cat|].
           rewrite /eq_op in E; simpl in E.
           by rewrite /rshift eqn_add2l eq_sym E.
 
           move=>p _; case(p.2 == p.1) as []eqn:E.
-          apply (rwP eqP) in E; rewrite -E -!linCompChain.
-          rewrite proj_injK; [by rewrite isomKl|].
+          move/eqP in E; rewrite -E -!linCompChain.
+          rewrite proj_inclK; [by rewrite isomKl|].
           destruct p as [[p1 H1] [p2 H2]]=>/=.
           by rewrite size_cat addnC (ltn_addl _ H2).
-          rewrite -!linCompChain proj_inj0; [by rewrite !linear0|by rewrite size_cat leq_addr|by rewrite size_cat leq_addr|].
+          rewrite -!linCompChain proj_incl0; [by rewrite !linear0|by rewrite size_cat leq_addr|by rewrite size_cat leq_addr|].
           rewrite /eq_op in E; simpl in E.
           by rewrite eq_sym E.
           Qed.
@@ -704,95 +697,51 @@ Module dsLmod.
         End Projection.
         
         Section Injection.
-          Definition inj_raw : I f -> DS
-          := (@Seq.inj R F I (enum F) Ord) \oLin inv(finify).
+          Definition incl_raw : I f -> DS
+          := (@Seq.incl R F I (enum F) Ord) \oLin inv(finify).
 
-          Lemma inj_lin : linear inj_raw.
-          Proof. rewrite/inj_raw=> r x y; by rewrite !linearPZ. Qed.
+          Lemma incl_lin : linear incl_raw.
+          Proof. rewrite/incl_raw=> r x y; by rewrite !linearPZ. Qed.
 
-          Lemma inj_injective : injective inj_raw.
-          Proof. rewrite/inj_raw=>x y; rewrite -!linCompChain=>H.
-            apply Seq.inj_injective in H.
+          Lemma incl_injective : injective incl_raw.
+          Proof. rewrite/incl_raw=>x y; rewrite -!linCompChain=>H.
+            apply Seq.incl_injective in H.
             apply (congr1 finify) in H.
             by rewrite !isomKl in H.
           Qed.
 
-          Definition inj : {linear I f -> DS} := Linear inj_lin.
+          Definition incl : {linear I f -> DS} := Linear incl_lin.
         End Injection.
       End Components.
 
       Section Results.
-        Lemma proj_injK (f : F) x : proj f (inj f x) = x.
-        Proof. by rewrite /proj_raw/inj_raw -!linCompChain
-          Seq.proj_injK; [rewrite -{2}(isomKf (finify f) x) | apply cardElt].
+        Lemma proj_inclK (f : F) x : proj f (incl f x) = x.
+        Proof. by rewrite /proj_raw/incl_raw -!linCompChain
+          Seq.proj_inclK; [rewrite -{2}(isomKf (finify f) x) | apply cardElt].
         Qed.
 
-        Lemma proj_inj0 (f f' : F) x : f != f' -> @proj f (@inj f' x) = 0.
+        Lemma proj_incl0 (f f' : F) x : f != f' -> @proj f (@incl f' x) = 0.
         Proof.
-          rewrite/proj_raw/inj_raw-(rwP negP)/not -!linCompChain=>H.
-          case((nat_of_ord (enum_rank f) != enum_rank f')) as []eqn:E.
-          rewrite (@Seq.proj_inj0_ofsize _ _ _ _ (Ord f) (Ord f') _ E).
-          by rewrite linear0.
-          assert (E' := contraFeq (fun B : enum_rank f != enum_rank f' => B) E).
-          apply enum_rank_inj in E'.
-          rewrite E' eq_refl in H.
-          by assert (H' := H is_true_true).
+          rewrite/proj_raw/incl_raw-!linCompChain.
+          case(enum_rank f != enum_rank f') as []eqn:E.
+          by rewrite (@Seq.proj_incl0_ofsize _ _ _ _ (Ord f) (Ord f') _ E) linear0.
+          move/negbFE/eqP/enum_rank_inj/eqP in E.
+          by rewrite E.
         Qed.
 
-        Lemma inj_proj_sum x : x = \sum_(f : F) inj f (proj f x).
+        Lemma incl_proj_sum x : x = \sum_(f : F) incl f (proj f x).
         Proof.
-          rewrite big_enum_val.
-          rewrite {1}(Seq.inj_proj_sum x) -!big_enum  -cardT.
+          rewrite big_enum_val {1}(Seq.incl_proj_sum x) -!big_enum -cardT.
           refine (eq_bigr _ _).
-          move=> i _; rewrite /inj_raw/proj_raw/Seq.inj/Seq.proj
+          move=> i _; rewrite /incl_raw/proj_raw/Seq.incl/Seq.proj
           -!linCompChain (isomlK (finify _))/Ord=>/=.
           by rewrite enum_valK.
         Qed.
 
-        Lemma inj_proj_idem x : \sum_(f : F) inj f (proj f (\sum_(f : F) inj f (proj f x))) = \sum_(f : F) inj f (proj f x).
-        Proof. by rewrite -inj_proj_sum. Qed.
+        Lemma inj_proj_idem x : \sum_(f : F) incl f (proj f (\sum_(f : F) incl f (proj f x))) = \sum_(f : F) incl f (proj f x).
+        Proof. by rewrite -incl_proj_sum. Qed.
       End Results.
     End Def.
-    Section Hom.
-(*      Variable (F G : finType) (I : F -> lmodType R) (J : G -> lmodType R)
-      (J = I \o F_G)
-      (F_G : G -> F) (enumB : enum F = map F_G (enum G)).
-
-      Definition enumify_raw : Seq.DS I (map F_G (enum G)) -> DS I.
-      by rewrite /DS enumB. Defined.
-      Definition unenumify_raw : DS I -> Seq.DS I (map F_G (enum G)).
-      by rewrite /DS enumB. Defined.
-      Lemma enumify_lin : linear enumify_raw /\ linear unenumify_raw.
-      Proof. split; rewrite /enumify_raw/unenumify_raw; by destruct enumB. Qed.
-      Lemma enumifyK : cancel enumify_raw unenumify_raw /\ cancel unenumify_raw enumify_raw .
-      Proof. split; rewrite /enumify_raw/unenumify_raw; by destruct enumB. Qed.
-      Definition enumify := linIsomBuildPack enumify_lin enumifyK.
-
-      Definition homify : {linear DS (I \o F_G) -> DS I}
-      := enumify \oLin (@Seq.homify _ _ _ I F_G (enum G)).
-      Definition unhomify : {linear DS I -> DS (I \o F_G)}
-      := inv(@Seq.homify _ _ _ I F_G (enum G)) \oLin inv(enumify).*)
-    End Hom.
-    Section Bijection.
-    (*
-      Variable (F G : finType) (I : F -> lmodType R) (J : G -> lmodType R)
-        (F_G : G -> F) (G_F : F -> G)
-        (I_J : I = J \o G_F) (J_I : J = I \o F_G)
-        (Inj : cancel F_G G_F) (Surj : cancel G_F F_G) (enumB : enum F = map F_G (enum G)).
-
-
-        Definition mapify_raw : DS (I \o S_T \o T_S) -> DS I.
-        by rewrite mapK. Defined.      
-        Definition unmapify_raw : DS I L -> DS I (map T_S (map S_T L)).
-        by rewrite mapK. Defined.
-        Lemma mapify_lin : linear mapify_raw /\ linear unmapify_raw.
-        Proof. split; by rewrite/mapify_raw/unmapify_raw; destruct mapK. Qed.
-        Lemma mapifyK : cancel mapify_raw unmapify_raw /\ cancel unmapify_raw mapify_raw.
-        Proof. split; by rewrite/mapify_raw/unmapify_raw; destruct mapK. Qed.
-        Definition mapify := linIsomBuildPack mapify_lin mapifyK.
-
-        Definition bijectify := linIsomConcat (homify I T_S (map S_T L)) mapify.*)
-    End Bijection.
 
     Section Operations.
       Variable (F G : finType) (I : F + G -> lmodType R).
@@ -841,39 +790,36 @@ Module dsLmod.
 
   End General.
   Section Results.
-  Variable (R : ringType) (M N : lmodType R) (m : M) (n : N).
-  Lemma pair_eq_seq (F G : eqType) (f : F -> M) (g : G -> N)
-    (L1 : seq F) (L2 : seq G) :
-    \sum_(i <- L1) (f i, 0)%R + \sum_(i <- L2) (0, g i) == (m,n)
-    <-> (\sum_(i <- L1) f i == m /\ \sum_(i <- L2) g i == n).
-  Proof. split; [move=> H|move=> [H1 H2]]. {
-    have:(\sum_(i <- L1) (dsLmod.Pair.inj1 M N (f i)) + \sum_(i <- L2) (dsLmod.Pair.inj2 M N (g i)) == (m, n))
-      by apply H .
-    rewrite -!raddf_sum/Pair.inj1/Pair.inj2/(@add _)/=
-     /add_pair add0r addr0 -(rwP eqP)=>H0;
-    by inversion H0.
-  }
-  move: H1 H2; rewrite -!(rwP eqP)=>H1 H2.
-  have:(\sum_(i <- L1) (Pair.inj1 _ _  (f i)) == (m, @zero N))
-    by rewrite -raddf_sum/Pair.inj1 H1.
-  have:(\sum_(i <- L2) (Pair.inj2 _ _ (g i)) == (@zero M, n))
-    by rewrite -raddf_sum/Pair.inj2 H2=>/=.
-  rewrite -!(rwP eqP)=>H H0.
-  have:(\sum_(i <- L1) (dsLmod.Pair.inj1 _ _ (f i)) + \sum_(i <- L2) (dsLmod.Pair.inj2 _ _ (g i)) == (m, n))
-    by rewrite H H0 {1}/(@add (pair_lmodType M N))/=
-    /add_pair add0r addr0.
-  by rewrite /Pair.inj1/Pair.inj2 -(rwP eqP).
-  Qed.
+    Variable (R : ringType) (M N : lmodType R) (m : M) (n : N).
+    Lemma pair_eq_seq (F G : eqType) (f : F -> M) (g : G -> N)
+      (L1 : seq F) (L2 : seq G) :
+      \sum_(i <- L1) (f i, 0)%R + \sum_(i <- L2) (0, g i) == (m,n)
+      <-> (\sum_(i <- L1) f i == m /\ \sum_(i <- L2) g i == n).
+    Proof. split; [move=> H|move=> [H1 H2]]. {
+        have:(\sum_(i <- L1) (dsLmod.Pair.incl1 M N (f i)) + \sum_(i <- L2) (dsLmod.Pair.incl2 M N (g i)) == (m, n))
+          by apply H .
+        rewrite -!raddf_sum/Pair.incl1/Pair.incl2/(@add _)/=
+        /add_pair add0r addr0 -(rwP eqP)=>H0;
+        by inversion H0.
+      }
+      move: H1 H2; rewrite -!(rwP eqP)=>H1 H2.
+      have:(\sum_(i <- L1) (Pair.incl1 _ _  (f i)) == (m, @zero N))
+        by rewrite -raddf_sum/Pair.incl1 H1.
+      have:(\sum_(i <- L2) (Pair.incl2 _ _ (g i)) == (@zero M, n))
+        by rewrite -raddf_sum/Pair.incl2 H2=>/=.
+      rewrite -!(rwP eqP)=>H H0.
+      have:(\sum_(i <- L1) (dsLmod.Pair.incl1 _ _ (f i)) + \sum_(i <- L2) (dsLmod.Pair.incl2 _ _ (g i)) == (m, n))
+        by rewrite H H0 {1}/(@add (pair_lmodType M N))/=
+        /add_pair add0r addr0.
+      by rewrite /Pair.incl1/Pair.incl2 -(rwP eqP).
+    Qed.
 
     Lemma pair_eq (F G : finType) (f : F -> M) (g : G -> N) :
-    \sum_i (f i, 0)%R + \sum_i (0, g i) == (m,n)
-    <-> (\sum_i f i == m /\ \sum_i g i == n).
-  Proof. by rewrite -big_enum/=pair_eq_seq big_enum/=. Qed.
+      \sum_i (f i, 0)%R + \sum_i (0, g i) == (m,n)
+      <-> (\sum_i f i == m /\ \sum_i g i == n).
+    Proof. by rewrite -big_enum/=pair_eq_seq big_enum/=. Qed.
   End Results.
 End dsLmod.
-
-Definition dsProj (R : ringType) (F : finType) (I : F -> (lmodType R)) (f : F) := @dsLmod.proj R F I f.
-Definition dsInj (R : ringType) (F : finType) (I : F -> (lmodType R)) (f : F) := @dsLmod.inj R F I f.
 
 
 
@@ -884,17 +830,17 @@ Notation "\bigoplus F" := (dsLmod.DS F) : lmod_scope.
 Notation "\bigoplus_ ( i : t ) F" := (dsLmod.DS (fun i : t => F i)) : lmod_scope.
 Notation "\bigoplus_ ( i 'in' A ) F" := (dsLmod.Seq.DS (filter F (fun i => i \in A))) : lmod_scope.
 Notation "\proj^( I )_ f " := (dsLmod.proj I f ) : lmod_scope.
-Notation "\inj^( I )_ f " := (dsLmod.inj I f ) : lmod_scope.
+Notation "\incl^( I )_ f " := (dsLmod.incl I f ) : lmod_scope.
 Notation "\proj_ f ^( I )" := (dsLmod.proj I f ) : lmod_scope.
-Notation "\inj_ f ^( I )" := (dsLmod.inj I f ) : lmod_scope.
+Notation "\incl_ f ^( I )" := (dsLmod.incl I f ) : lmod_scope.
 
 Theorem DirectSum_UniversalProperty (R : ringType) (F : finType)
   (I : F -> (lmodType R))
     : forall (f : forall i : F, {linear \bigoplus I -> (I i)}), 
       exists (g : forall i : F, {linear (I i) -> (I i)}),
-        forall i : F, f i \oLin \inj_i^(I) = g i.
+        forall i : F, f i \oLin \incl_i^(I) = g i.
 Proof. move=> f.
-  by refine(ex_intro _ (fun i => f i \oLin \inj_i^(I)) _ ).
+  by refine(ex_intro _ (fun i => f i \oLin \incl_i^(I)) _ ).
 Qed.
 
 Close Scope  lmod_scope.
